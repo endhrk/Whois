@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.net.whois.*;
 
 public class Whois {
+	public static final String DEFAULT_SERVER = "";
 
 	public static String whois(String domain) {
 		String result = null;
@@ -24,9 +25,18 @@ public class Whois {
 		HashMap<String, String> charsetList = Whois.createCharsetList();
 
 		domain = getDomain(domain);
-		String toplevel = getTopLevelDomain(domain);
-		String whoisServer = serverList.get(toplevel);
-		String charset = charsetList.get(toplevel);
+		String whoisServer = null;
+		for (int depth=2; depth > 0;depth--){ 
+			String toplevel = getTopLevelDomain(domain,depth);
+			whoisServer = serverList.get(toplevel);
+			if (whoisServer != null) {
+				break;
+			}
+		}
+		if (whoisServer == null) {
+			whoisServer = DEFAULT_SERVER;
+		}
+		String charset = charsetList.get(whoisServer);
 
 		try {
 			whois.connect(whoisServer);
@@ -89,7 +99,11 @@ public class Whois {
 		return hostname.substring(hostname.indexOf('.') + 1);
 	}
 
-	private static String getTopLevelDomain(String domain) {
+	private static String getTopLevelDomain(String domain, int depth) {
+		int string_index = domain.length();
+		for(int i=0;i<depth;i++) {
+			string_index = domain.lastIndexOf('.',string_index);
+		}
 		return domain.substring(domain.lastIndexOf('.') + 1);
 	}
 
