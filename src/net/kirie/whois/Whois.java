@@ -17,22 +17,16 @@ import org.apache.commons.net.whois.*;
 
 public class Whois {
 	public static final String DEFAULT_SERVER = "";
+	public static final HashMap<String, String> serverList = Whois.createServerList();
+	public static final HashMap<String, String> charsetList = Whois.createCharsetList();
 
 	public static String whois(String domain) {
 		String result = null;
 		WhoisClient whois = new WhoisClient();
-		HashMap<String, String> serverList = Whois.createServerList();
-		HashMap<String, String> charsetList = Whois.createCharsetList();
 
-		domain = getDomain(domain);
-		String whoisServer = null;
-		for (int depth=2; depth > 0;depth--){ 
-			String toplevel = getTopLevelDomain(domain,depth);
-			whoisServer = serverList.get(toplevel);
-			if (whoisServer != null) {
-				break;
-			}
-		}
+		String query = makeQuery(domain);
+		String tld = getTopLevelDomain(query);
+		String whoisServer = serverList.get(tld);
 		if (whoisServer == null) {
 			whoisServer = DEFAULT_SERVER;
 		}
@@ -42,7 +36,7 @@ public class Whois {
 			whois.connect(whoisServer);
 			if (charset != null) {
 				BufferedReader stream = new BufferedReader(
-						new InputStreamReader(whois.getInputStream(domain),
+						new InputStreamReader(whois.getInputStream(query),
 								charset));
 				String line;
 				result = "";
@@ -50,7 +44,7 @@ public class Whois {
 					result += line + "\n";
 				}
 			} else {
-				result = whois.query(domain);
+				result = whois.query(query);
 			}
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
@@ -63,48 +57,71 @@ public class Whois {
 		return result;
 	}
 
-	private static String getDomain(String input) {
+	private static String makeQuery(String input) {
 		String result = null;
+		InetAddress address = toAddress(input);
+		if (address != null) {
+			result = toDomain(address);
+		} else {
+			result = toDomain(input);
+		}
+		return result;
+	}
+	
+	private static InetAddress toAddress(String ipv4) {
+		InetAddress result = null;
 		String regex = "^\\d+\\.\\d+\\.\\d+\\.\\d+$";
 		Pattern pattern = Pattern.compile(regex);
-		Matcher match = pattern.matcher(input);
+		Matcher match = pattern.matcher(ipv4);
 
 		if (match.find()) {
 			try {
-				String[] splitAddr = input.split("\\.");
+				String[] splitAddr = ipv4.split("\\.");
 				byte[] address = new byte[4];
 				for (int i = 0; i < splitAddr.length; i++) {
 					address[i] = Integer.valueOf(splitAddr[i]).byteValue();
 				}
-				InetAddress inetAddr = InetAddress.getByAddress(address);
-				result = getDomain(inetAddr);
+				result = InetAddress.getByAddress(address);
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			}
-		} else {
-			try {
-				InetAddress inetAddr = InetAddress.getByName(input);
-				result = getDomain(inetAddr);
-			} catch (UnknownHostException e) {
-				result = input;
-			}
-
 		}
 
 		return result;
 	}
-
-	private static String getDomain(InetAddress inetAddr) {
-		String hostname = inetAddr.getCanonicalHostName();
-		return hostname.substring(hostname.indexOf('.') + 1);
+	
+	private static String toDomain(String input) {
+		String result = null;
+		String tld = getTopLevelDomain(input);
+		int index = input.lastIndexOf('.',input.length() - tld.length() - 1);
+		result = input.substring(index+1);
+		return result;
 	}
 
-	private static String getTopLevelDomain(String domain, int depth) {
-		int string_index = domain.length();
-		for(int i=0;i<depth;i++) {
-			string_index = domain.lastIndexOf('.',string_index);
+	private static String toDomain(InetAddress inetAddr) {
+		String hostname = inetAddr.getCanonicalHostName();
+		return toDomain(hostname);
+	}
+
+	private static String getTopLevelDomain(String domain) {
+		String result = null;
+		int fromIndex = domain.length();
+		int firstIndex = domain.lastIndexOf('.');
+		String firstTld = domain.substring(firstIndex);
+		int secondIndex = domain.lastIndexOf('.', firstIndex -1);
+		String secondTld;
+		if (secondIndex < 0) {
+			secondTld = domain;
+		} else {
+			secondTld = domain.substring(secondIndex);
 		}
-		return domain.substring(domain.lastIndexOf('.') + 1);
+		if (serverList.get(secondTld) != null) {
+			result = secondTld;
+		} else if (serverList.get(firstTld) != null) {
+			result = firstTld;
+		}
+
+		return result;
 	}
 
 	private static HashMap<String, String> createServerList() {

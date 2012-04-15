@@ -15,7 +15,7 @@ public class WhoisClient {
 		}
 		String result = Whois.whois(args[0]);
 		System.out.println(result);
-		WhoisData data = WhoisData.createWhoisData(result);
+//		WhoisData data = WhoisData.createWhoisData(result);
 		
 		System.out.flush();
 
