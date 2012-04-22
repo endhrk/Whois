@@ -13,30 +13,40 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.kirie.whois.utils.Utils;
+
 import org.apache.commons.net.whois.*;
 
 public class Whois {
-	public static final String DEFAULT_SERVER = "";
-	public static final HashMap<String, String> serverList = Whois.createServerList();
-	public static final HashMap<String, String> charsetList = Whois.createCharsetList();
-
+	public static final String DEFAULT_SERVER = "whois.crsnic.net";
+	private static WhoisClient whois = new WhoisClient();
+	
 	public static String whois(String domain) {
 		String result = null;
-		WhoisClient whois = new WhoisClient();
-
-		String query = makeQuery(domain);
-		String tld = getTopLevelDomain(query);
-		String whoisServer = serverList.get(tld);
+		if(Utils.isIpAddress(domain)) {
+			domain = Utils.toHostname(domain);
+		}
+		String whoisServer = Utils.getWhoisServer(domain);
 		if (whoisServer == null) {
 			whoisServer = DEFAULT_SERVER;
 		}
-		String charset = charsetList.get(whoisServer);
+		
+		String charset = Utils.getWhoisCharset(whoisServer);
+		
+		result = search(domain, whoisServer, charset);
 
+		return result;
+	}
+	
+	private static String search(String domain,
+			String whoisServer, String charset) {
+		String result = null;
+		
 		try {
 			whois.connect(whoisServer);
 			if (charset != null) {
 				BufferedReader stream = new BufferedReader(
-						new InputStreamReader(whois.getInputStream(query),
+						new InputStreamReader(whois.getInputStream(domain),
 								charset));
 				String line;
 				result = "";
@@ -44,7 +54,7 @@ public class Whois {
 					result += line + "\n";
 				}
 			} else {
-				result = whois.query(query);
+				result = whois.query(domain);
 			}
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
@@ -53,79 +63,14 @@ public class Whois {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
+		
+		if (!Utils.isSuccess(result)) {
+			domain = Utils.removeHostname(domain);
+			result = search(domain,whoisServer,charset);
+		}
+		
 		return result;
 	}
 
-	private static String makeQuery(String input) {
-		String result = null;
-		InetAddress address = toAddress(input);
-		if (address != null) {
-			result = toDomain(address);
-		} else {
-			result = toDomain(input);
-		}
-		return result;
-	}
-	
-	private static String toDomain(String input) {
-		String result = null;
-		String tld = getTopLevelDomain(input);
-		int index = input.lastIndexOf('.',input.length() - tld.length() - 1);
-		result = input.substring(index+1);
-		return result;
-	}
-
-	private static String getTopLevelDomain(String domain) {
-		String result = null;
-		int fromIndex = domain.length();
-		int firstIndex = domain.lastIndexOf('.');
-		String firstTld = domain.substring(firstIndex);
-		int secondIndex = domain.lastIndexOf('.', firstIndex -1);
-		String secondTld;
-		if (secondIndex < 0) {
-			secondTld = domain;
-		} else {
-			secondTld = domain.substring(secondIndex);
-		}
-		if (serverList.get(secondTld) != null) {
-			result = secondTld;
-		} else if (serverList.get(firstTld) != null) {
-			result = firstTld;
-		}
-
-		return result;
-	}
-
-	private static HashMap<String, String> createServerList() {
-		String filePath = "data/whois-server-list";
-		return createWhoisList(filePath);
-	}
-
-	private static HashMap<String, String> createCharsetList() {
-		String filePath = "data/whois-charset-list";
-		return createWhoisList(filePath);
-	}
-
-	private static HashMap<String, String> createWhoisList(String filePath) {
-		HashMap<String, String> serverList = new HashMap<String, String>();
-		File file = new File(filePath);
-		try {
-			BufferedReader br = new BufferedReader(new FileReader(file));
-			String server;
-			String[] serverArray;
-			while ((server = br.readLine()) != null) {
-				serverArray = server.split(" ");
-				serverList.put(serverArray[0], serverArray[1]);
-			}
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return serverList;
-	}
 
 }

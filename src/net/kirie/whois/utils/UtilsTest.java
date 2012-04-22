@@ -10,14 +10,15 @@ import org.junit.Test;
 public class UtilsTest {
 
 	@Test
-	public void testToAddress() {
-		InetAddress inetAddr = Utils.toAddress("59.106.174.85");
-		assertNotNull(inetAddr);
+	public void testToInetAddress() {
+		assertNotNull(Utils.toInetAddress("59.106.174.85"));
+		assertNull(Utils.toInetAddress("hogehoge"));
 	}
 
 	@Test
 	public void testToHostnameString() {
 		assertNotNull(Utils.toHostname("59.106.174.85"));
+		assertNull(Utils.toHostname("hogehoge"));
 	}
 
 	@Test
@@ -40,18 +41,32 @@ public class UtilsTest {
 
 	@Test
 	public void testRemoveHostname() {
-		String hostname = "www.kirie.net";
-		String domain = "kirie.net";
-		assertEquals(Utils.removeHostname(hostname), domain);
-		hostname = "hoge.www.kirie.net";
-		domain = "www.kirie.net";
-		assertEquals(Utils.removeHostname(hostname), domain);
-		hostname = "kirie.net";
-		domain = "net";
-		assertEquals(Utils.removeHostname(hostname), domain);
-		hostname = "net";
-		domain = "";
-		assertEquals(Utils.removeHostname(hostname), domain);
+		String input = "www.kirie.net";
+		String result = "kirie.net";
+		assertEquals(Utils.removeHostname(input), result);
+		input = "hoge.www.kirie.net";
+		result = "www.kirie.net";
+		assertEquals(Utils.removeHostname(input), result);
+		input = "kirie.net";
+		result = "net";
+		assertEquals(Utils.removeHostname(input), result);
+		input = "net";
+		result = "net";
+		assertEquals(Utils.removeHostname(input), result);
+		input = "";
+		result = "";
+		assertEquals(Utils.removeHostname(input), result);
+		input = null;
+		result = null;
+		assertEquals(Utils.removeHostname(input), result);
+	}
+
+	@Test
+	public void testIsSuccess() {
+		assertTrue(Utils.isSuccess("no match"));
+		assertTrue(Utils.isSuccess("No match"));
+		assertTrue(Utils.isSuccess("No Match"));
+		assertFalse(Utils.isSuccess("www.kirie.net"));
 	}
 
 }
